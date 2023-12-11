@@ -1,0 +1,41 @@
+stages:
+  - stats_analis
+  - secrets
+  - container_scan
+  - web_application_scan
+  - build_and_deploy
+
+
+stats_analis:
+  stage: stats_analis
+  script:
+    - npm install -g eslint
+    - eslint --init
+    - eslint .
+
+secrets:
+  stage: secrets
+  script:
+    - trufflehog --path /home/bunta/cacl/calc.py
+
+
+container_scan:
+  stage: container_scan
+  script:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL calc:latest
+
+web_application_scan:
+  stage: web_application_scan
+  script:
+    - zap-baseline.py -t http://127.0.0.1:5000/add -r report_add.html
+    - zap-baseline.py -t http://127.0.0.1:5000/subtract -r report_subtract.html
+    - zap-baseline.py -t http://127.0.0.1:5000/multiply -r report_multiply.html
+    - zap-baseline.py -t http://127.0.0.1:5000/divide -r report_divide.html
+
+build_and_deploy:
+  stage: build_and_deploy
+  script:
+    - docker build -t ghcr.io/Makutenus/calc:latest .
+    - docker stop calc || true
+    - docker rm calc || true
+    - docker run -d -p 5000:5000 --name calc ghcr.io/Makutenus/calc:latest
